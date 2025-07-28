@@ -1,4 +1,4 @@
-const { getDB } = require('../config/mongo');
+const { getDB } = require('../config/mongo.js');
 const Cliente = require('../models/cliente.js');
 
 async function crearCliente(data) {
