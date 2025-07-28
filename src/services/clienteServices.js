@@ -6,7 +6,7 @@ async function crearCliente(data) {
     if(errores.length) throw new Error (errores.join(', '));
 
     const db = await getDB();
-    const coleccion = db.coleccion('clientes');
+    const coleccion = db.collection('clientes');
 
     const existe = await coleccion.findOne({correo: data.correo});
     if (existe) throw new Error("❌ Cliente con este correo ya existe");
@@ -18,16 +18,16 @@ async function crearCliente(data) {
 
 async function listarClientes(){
     const db = await getDB();
-    return db.coleccion('clientes').find({}).toArray();
+    return db.collection('clientes').find({}).toArray();
 }
 
 async function editarCliente(id, nuevosDatos) {
-    const db = await getDb();
+    const db = await getDB();
     return db.collection('clientes').updateOne({ _id: id }, { $set: nuevosDatos });
 }
 
 async function eliminarCliente(id) {
-    const db = await getDb();
+    const db = await getDB();
     return db.collection('clientes').deleteOne({ _id: id });
 }
 
