@@ -1,5 +1,6 @@
 const inquirer = require('inquirer');
 const menuCliente = require('./src/menus/clienteMenu');
+const menuPropuestas = require('./src/menus/propuestaMenu.js');
 const connectDB = require('./src/config/mongo'); // asegúrate de tenerlo
 
 async function mostrarMenuPrincipal() {
@@ -15,6 +16,8 @@ async function mostrarMenuPrincipal() {
             message: '📦 ¿Qué deseas hacer?',
             choices: [
                 '📂 Gestionar clientes',
+                '📝 Gestionar propuestas',
+
                 '🚪 Salir'
             ]
         }
@@ -23,6 +26,9 @@ async function mostrarMenuPrincipal() {
     switch (opcion) {
         case '📂 Gestionar clientes':
             await menuCliente();
+            break;
+        case '📝 Gestionar propuestas':
+            await menuPropuestas();
             break;
         case '🚪 Salir':
             console.log('\n👋 ¡Gracias por usar el Gestor de Portafolio!\n');

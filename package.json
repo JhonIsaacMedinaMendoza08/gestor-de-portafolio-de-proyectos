@@ -10,7 +10,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "chalk": "^5.4.1",
+    "chalk": "^4.1.2",
     "dayjs": "^1.11.13",
     "dotenv": "^17.2.1",
     "inquirer": "^8.2.5",

@@ -24,14 +24,19 @@ async function listarPropuestasPorCliente(clienteId) {
 }
 
 async function actualizarEstado(id, nuevoEstado) {
-    const db = await getDb();
+    const db = await getDB();
     return db.collection('propuestas').updateOne({ _id: id }, { $set: { estado: nuevoEstado } });
 }
 
+async function eliminarPropuesta(id) {
+    const db = await getDB();
+    return db.collection('propuestas').deleteOne({ _id: id });
+}
 
 module.exports = {
     crearPropuesta,
     listarPropuestas,
     listarPropuestasPorCliente,
     actualizarEstado,
+    eliminarPropuesta
 };
