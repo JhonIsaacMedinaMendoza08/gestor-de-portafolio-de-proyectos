@@ -1,5 +1,5 @@
 const { getDB } = require('../config/mongo');
-const Proyecto = require('../models/proyecto.js');
+const Proyecto = require('../models/proyectoModel.js');
 const { ObjectId } = require('mongodb');
 
 async function crearProyecto(data) {

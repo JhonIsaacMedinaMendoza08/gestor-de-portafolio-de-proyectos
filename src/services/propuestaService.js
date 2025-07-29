@@ -1,5 +1,5 @@
 const { getDB } = require('../config/mongo.js');
-const Propuesta = require('../models/propuesta.js')
+const Propuesta = require('../models/propuestaModel.js')
 const { ObjectId } = require('mongodb');
 const { crearProyecto } = require('./proyectoService.js');
 

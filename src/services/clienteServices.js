@@ -1,5 +1,5 @@
 const { getDB } = require('../config/mongo.js');
-const Cliente = require('../models/cliente.js');
+const Cliente = require('../models/clienteModel.js');
 
 async function crearCliente(data) {
     const errores = Cliente.validar(data);
