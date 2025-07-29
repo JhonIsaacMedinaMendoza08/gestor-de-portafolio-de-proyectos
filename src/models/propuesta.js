@@ -20,5 +20,4 @@ class Propuesta {
         return errores;
     }
 }
-\
 module.export = Propuesta;
