@@ -2,6 +2,7 @@ const inquirer = require('inquirer');
 const { crearCliente, listarClientes, editarCliente, eliminarCliente } = require('../services/clienteServices.js');
 const { ObjectId } = require('mongodb');
 
+
 async function menuCliente() {
     const opcion = await inquirer.prompt([
         {
@@ -103,11 +104,23 @@ async function menuCliente() {
 
     } else if (opcion.accion === 'Listar clientes') {
         const clientes = await listarClientes();
-        console.table(clientes);
-        return menuCliente();
+        if (clientes.length === 0) {
+        console.log('⚠️ No hay clientes registrados.');
+    } else {
+        const clientesFormateados = clientes.map(c => ({
+            Nombre: c.nombre,
+            Correo: c.correo,
+            Teléfono: c.telefono,
+            Tipo: c.tipo,
+            'Fecha de registro': new Date(c.createAt).toLocaleString()
+        }));
+        console.table(clientesFormateados);
+    }
+
+    await menuCliente();
 
     } else if (opcion.accion === 'Volver') {
-        return; // vuelve al menú principal
+        return; 
     }
 }
 

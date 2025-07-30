@@ -1,23 +1,23 @@
 class Cliente {
-    constructor ({nombre, correo, telefono, tipo}){
+    constructor({ nombre, correo, telefono, tipo }) {
         this.nombre = nombre;
         this.correo = correo;
         this.telefono = telefono;
         this.tipo = tipo;
         this.createAt = new Date();
     }
-
-    static validar(cliente){
-        const errores = [];
-
-        if (!cliente.nombre || typeof cliente.nombre !== 'string') errores.push("Nombre inválido");
-        if (!cliente.correo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cliente.correo)) errores.push("Correo inválido");
-        if (!cliente.telefono || typeof cliente.telefono !== 'string') errores.push("Teléfono inválido");
-        if (!cliente.tipo || !['empresa', 'independiente'].includes(cliente.tipo)) errores.push("Tipo inválido");
-
-    return errores;
-
-    }
 }
 
-module.exports = Cliente;
+const clienteSchema = {
+    type: 'object',
+    properties: {
+        nombre: { type: 'string', minLength: 3 },
+        correo: { type: 'string', format: 'email' },
+        telefono: { type: 'string', minLength: 7 },
+        tipo: { type: 'string', enum: ['empresa', 'independiente'] }
+    },
+    required: ['nombre', 'correo', 'telefono', 'tipo'],
+    additionalProperties: false
+};
+
+module.exports = { Cliente, clienteSchema };

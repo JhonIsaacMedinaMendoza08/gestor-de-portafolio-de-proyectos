@@ -2,6 +2,8 @@ const inquirer = require('inquirer');
 const menuCliente = require('./src/menus/clienteMenu');
 const menuPropuestas = require('./src/menus/propuestaMenu.js');
 const menuProyectos = require('./src/menus/proyectoMenu.js');
+const menuContratos = require('./src/menus/contratoMenu.js');
+
 
 const connectDB = require('./src/config/mongo'); 
 
@@ -20,7 +22,7 @@ async function mostrarMenuPrincipal() {
                 '📂 Gestionar clientes',
                 '📝 Gestionar propuestas',
                 '📁 Gestionar proyectos',
-
+                '📜 Gestionar contratos',
 
                 '🚪 Salir'
             ]
@@ -36,6 +38,9 @@ async function mostrarMenuPrincipal() {
             break;
         case '📁 Gestionar proyectos':
             await menuProyectos();
+            break;
+        case '📜 Gestionar contratos':
+            await menuContratos();
             break;
         case '🚪 Salir':
             console.log('\n👋 ¡Gracias por usar el Gestor de Portafolio!\n');
