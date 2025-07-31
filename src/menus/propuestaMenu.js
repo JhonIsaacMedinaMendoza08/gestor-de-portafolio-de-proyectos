@@ -86,26 +86,47 @@ async function menuPropuestas() {
         ]);
 
         const propuestas = await listarPropuestasPorCliente(clienteId);
-        console.table(propuestas);
-        return menuPropuestas();
+        if (propuestas.length === 0) {
+            console.log(chalk.yellow('⚠️ Este cliente no tiene propuestas registradas.'));
+            return menuPropuestas();
+        }
+
+        console.log(chalk.cyan.bold('\n📑 Propuestas para el cliente seleccionado:\n'));
+
+        propuestas.forEach((p, index) => {
+            console.log(
+                chalk.bold(`#${index + 1}`),
+                chalk.white(`📝 Descripción:`), p.descripcion
+            );
+            console.log(chalk.white(`💰 Precio:`), chalk.yellow(`$${p.precio.toLocaleString()}`));
+            console.log(chalk.white(`📅 Plazo:`), `${p.plazoDias} días`);
+            console.log(chalk.white(`🛠️ Tipo de trabajo:`), p.tipoTrabajo);
+            console.log(chalk.white(`🔧 Tecnologías:`), (p.tecnologias || []).join(', '));
+            console.log(chalk.white(`📌 Estado:`), p.estado === 'aceptada' ? chalk.green(p.estado) : chalk.red(p.estado));
+            console.log(chalk.white(`🗓️ Fecha:`), new Date(p.createdAt).toLocaleDateString());
+            console.log(chalk.gray('────────────────────────────────────────────\n'));
+        });
     }
     else if (accion === 'Listar TODAS las propuestas') {
         const propuestas = await listarPropuestas();
         const clientes = await listarClientes();
+
+        // Solo mostrar propuestas NO aceptadas
+        const propuestasVisibles = propuestas.filter(p => p.estado !== 'aceptada');
+
+        if (propuestasVisibles.length === 0) {
+            console.log(chalk.yellow('⚠️ No hay propuestas pendientes o rechazadas para mostrar.'));
+            return menuPropuestas();
+        }
 
         const clientesPorId = {};
         clientes.forEach(c => {
             clientesPorId[c._id.toString()] = c.nombre;
         });
 
-        if (propuestas.length === 0) {
-            console.log(chalk.yellow('⚠️ No hay propuestas registradas.'));
-            return menuPropuestas();
-        }
+        console.log(chalk.cyan.bold('\n📑 Lista de propuestas activas (pendientes o rechazadas):\n'));
 
-        console.log(chalk.cyan.bold('\n📑 Lista de propuestas registradas:\n'));
-
-        propuestas.forEach((p, index) => {
+        propuestasVisibles.forEach((p, index) => {
             console.log(
                 chalk.bold(`#${index + 1}`),
                 chalk.greenBright('[' + (clientesPorId[p.clienteId] || 'Cliente desconocido') + ']')
@@ -115,7 +136,7 @@ async function menuPropuestas() {
             console.log(chalk.white(`📅 Plazo:`), `${p.plazoDias} días`);
             console.log(chalk.white(`🛠️ Tipo de trabajo:`), p.tipoTrabajo);
             console.log(chalk.white(`🔧 Tecnologías:`), (p.tecnologias || []).join(', '));
-            console.log(chalk.white(`📌 Estado:`), p.estado === 'aceptada' ? chalk.green(p.estado) : chalk.red(p.estado));
+            console.log(chalk.white(`📌 Estado:`), p.estado === 'rechazada' ? chalk.red(p.estado) : chalk.blue(p.estado));
             console.log(chalk.white(`🗓️ Fecha:`), new Date(p.createdAt).toLocaleDateString());
             console.log(chalk.gray('────────────────────────────────────────────\n'));
         });
@@ -130,12 +151,19 @@ async function menuPropuestas() {
             return menuPropuestas();
         }
 
+        const propuestasEliminables = propuestas.filter(p => p.estado !== 'aceptada');
+
+        if (propuestasEliminables.length === 0) {
+            console.log('🚫 No hay propuestas eliminables (todas están aceptadas).');
+            return menuPropuestas();
+        }
+
         const { propuestaId } = await inquirer.prompt([
             {
                 type: 'list',
                 name: 'propuestaId',
                 message: 'Selecciona la propuesta a eliminar:',
-                choices: propuestas.map(p => ({
+                choices: propuestasEliminables.map(p => ({
                     name: `${p.descripcion} (clienteId: ${p.clienteId}) - estado: ${p.estado}`,
                     value: p._id.toString()
                 }))
@@ -190,8 +218,12 @@ async function menuPropuestas() {
             }
         ]);
 
-        await actualizarEstado(new ObjectId(propuestaId), nuevoEstado);
-        console.log('✅ Estado actualizado');
+        try {
+            await actualizarEstado(new ObjectId(propuestaId), nuevoEstado);
+            console.log('✅ Estado actualizado');
+        } catch (err) {
+            console.error(err.message);
+        }
 
         return menuPropuestas();
     }

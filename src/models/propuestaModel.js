@@ -9,20 +9,27 @@ class Propuesta {
         this.estado = 'pendiente';
         this.createdAt = new Date();
     }
-
-    static validar(propuesta) {
-        const errores = [];
-
-        if (!propuesta.clienteId) errores.push("Cliente asociado obligatorio");
-        if (!propuesta.descripcion || typeof propuesta.descripcion !== 'string') errores.push("Descripción inválida");
-        if (!propuesta.precio || typeof propuesta.precio !== 'number' || propuesta.precio <= 0) errores.push("Precio inválido");
-        if (!propuesta.plazoDias || typeof propuesta.plazoDias !== 'number' || propuesta.plazoDias < 1) errores.push("Plazo inválido");
-        if (!Array.isArray(propuesta.tecnologias) || propuesta.tecnologias.length === 0) errores.push("Debe seleccionar al menos una tecnología");
-        if (!['frontend', 'backend', 'fullstack'].includes(propuesta.tipoTrabajo)) errores.push("Tipo de trabajo inválido");
-
-
-        return errores;
-    }
 }
 
-module.exports = Propuesta;
+const propuestaSchema = {
+    type: "object",
+    properties: {
+        clienteId: { type: "string", minLength: 10 },
+        descripcion: { type: "string", minLength: 10 },
+        precio: { type: "number", minimum: 1 },
+        plazoDias: { type: "number", minimum: 1 },
+        tecnologias: {
+            type: "array",
+            items: { type: "string" },
+            minItems: 1
+        },
+        tipoTrabajo: {
+            type: "string",
+            enum: ["frontend", "backend", "fullstack"]
+        }
+    },
+    required: ["clienteId", "descripcion", "precio", "plazoDias", "tecnologias", "tipoTrabajo"],
+    additionalProperties: false
+};
+
+module.exports = { Propuesta, propuestaSchema };
