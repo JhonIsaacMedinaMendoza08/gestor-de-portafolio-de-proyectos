@@ -1,20 +1,27 @@
 class Proyecto {
-    constructor({ clienteId, propuestaId, nombre, descripcion, estado }) {
+    constructor({ clienteId, nombre, descripcion, plazoDias, estado, propuestaId = null }) {
         this.clienteId = clienteId;
-        this.propuestaId = propuestaId || null;
         this.nombre = nombre;
         this.descripcion = descripcion;
-        this.estado = estado || 'activo';
+        this.plazoDias = plazoDias;
+        this.estado = estado;
+        this.propuestaId = propuestaId;
         this.createdAt = new Date();
-    }
-    static validar(data) {
-        const errores = [];
-        if (!data.clienteId) errores.push('Cliente requerido');
-        if (!data.nombre || typeof data.nombre !== 'string') errores.push('Nombre inválido');
-        if (!data.descripcion || typeof data.descripcion !== 'string') errores.push('Descripción inválida');
-        if (!['activo', 'pausado', 'finalizado', 'cancelado'].includes(data.estado)) errores.push('Estado inválido');
-        return errores;
     }
 }
 
-module.exports = Proyecto;
+const proyectoSchema = {
+    type: "object",
+    properties: {
+        clienteId: { type: "string", minLength: 10 },
+        nombre: { type: "string", minLength: 5 },
+        descripcion: { type: "string", minLength: 1 },
+        plazoDias: { type: "number", minimum: 1 },
+        estado: { type: "string", enum: ["activo", "pausado"] },
+        propuestaId: { type: ["string", "null"] }
+    },
+    required: ["clienteId", "nombre", "descripcion", "plazoDias", "estado"],
+    additionalProperties: false
+};
+
+module.exports = { Proyecto, proyectoSchema };
