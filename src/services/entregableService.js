@@ -31,46 +31,66 @@ async function listarEntregablesPorProyecto(proyectoId) {
     return db.collection('entregables').find({ proyectoId }).toArray();
 }
 
-async function cambiarEstadoEntregable(id, nuevoEstado) {
-    const estadosValidos = ['pendiente', 'entregado', 'aprobado', 'rechazado'];
-    if (!estadosValidos.includes(nuevoEstado)) {
-        throw new Error('❌ Estado no válido.');
+async function cambiarEstadoEntregable(entregableId, nuevoEstado, razon = ''){
+    const db = await getDB();
+    const session = db.client.startSession();
+
+    try{
+        await session.withTransaction(async () => {
+            const entregable = await db.collection('entregables').findOne({_id: new ObjectId(entregableId)}, {session});
+
+            if(!entregable) throw new Error('❌ Entregable no encontrado.');
+            if(!['pendiente','entregado','aprobado','rechazado'].includes(nuevoEstado)){
+                throw new Error('❌ Estado no válido.');
+            }
+
+            const updateFields = {estado: nuevoEstado};
+            if(nuevoEstado === 'rechazado'){
+                if(!razon || razon.trim().length<5){
+                    throw new Error('❌ Debes incluir una razón válida (mínimo 5 caracteres) para el rechazo.');
+                }
+                updateFields.razonRechazo = razon;
+            } else {
+                updateFields.razonRechazo = undefined;
+            }
+
+            const result = await db.collection('entregables').updateOne(
+                { _id: new ObjectId(entregableId) },
+                { $set: updateFields },
+                { session }
+            );
+
+            if(result.modifiedCount === 0){
+                throw new Error('⚠️ No se actualizó el estado del entregable.');
+            }
+        });
+
+        return true;
+    } finally {
+        await session.endSession();
     }
-
-    const db = await getDB();
-    const session = db.client.startSession();
-
-    let resultado = null;
-    await session.withTransaction(async () => {
-        const entregable = await db.collection('entregables').findOne({ _id: new ObjectId(id) }, { session });
-        if (!entregable) throw new Error('❌ Entregable no encontrado.');
-
-        resultado = await db.collection('entregables').updateOne(
-            { _id: new ObjectId(id) },
-            { $set: { estado: nuevoEstado } },
-            { session }
-        );
-    });
-
-    await session.endSession();
-    return resultado.modifiedCount > 0;
 }
-
-async function eliminarEntregable(id) {
+    
+async function eliminarEntregable(entregableId) {
     const db = await getDB();
     const session = db.client.startSession();
 
-    let eliminado = false;
-    await session.withTransaction(async () => {
-        const entregable = await db.collection('entregables').findOne({ _id: new ObjectId(id) }, { session });
-        if (!entregable) throw new Error('❌ Entregable no encontrado.');
+    try {
+        await session.withTransaction(async () => {
+            const resultado = await db.collection('entregables').deleteOne(
+                { _id: new ObjectId(entregableId) },
+                { session }
+            );
 
-        const result = await db.collection('entregables').deleteOne({ _id: new ObjectId(id) }, { session });
-        eliminado = result.deletedCount > 0;
-    });
+            if (resultado.deletedCount === 0) {
+                throw new Error('⚠️ No se pudo eliminar el entregable.');
+            }
+        });
 
-    await session.endSession();
-    return eliminado;
+        return true;
+    } finally {
+        await session.endSession();
+    }
 }
 
 module.exports = {

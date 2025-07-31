@@ -42,7 +42,7 @@ async function mostrarMenuPrincipal() {
         case '📜 Gestionar contratos':
             await menuContratos();
             break;
-        case 'Gestionar Entregables':
+        case '🚀 Gestionar Entregables':
             await menuEntregables();
             break;
             

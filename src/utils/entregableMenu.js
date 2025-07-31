@@ -78,7 +78,8 @@ async function menuEntregables() {
         }
 
         return menuEntregables();
-    } else if (accion === '📋 Ver entregables por proyecto') {
+    } 
+    else if (accion === '📋 Ver entregables por proyecto') {
         const proyectos = await listarProyectos();
         const clientes = await listarClientes();
 
@@ -149,8 +150,20 @@ async function menuEntregables() {
             }
         ]);
 
+        let razon = '';
+        if (nuevoEstado === 'rechazado') {
+            const res = await inquirer.prompt([
+                {
+                    name: 'razon',
+                    message: 'Motivo del rechazo:',
+                    validate: val => val.length >= 5 || 'Debe tener al menos 5 caracteres'
+                }
+            ]);
+            razon = res.razon;
+        }
+
         try {
-            await cambiarEstadoEntregable(entregableId, nuevoEstado);
+            await cambiarEstadoEntregable(entregableId, nuevoEstado, razon);
             console.log(chalk.green('✅ Estado actualizado.'));
         } catch (err) {
             console.error(chalk.red(err.message));
