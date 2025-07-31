@@ -22,7 +22,7 @@ async function mostrarMenuPrincipal() {
                 '📝 Gestionar propuestas',
                 '📁 Gestionar proyectos',
                 '📜 Gestionar contratos',
-                'Gestionar Entregables',
+                '🚀 Gestionar Entregables',
 
                 '🚪 Salir'
             ]

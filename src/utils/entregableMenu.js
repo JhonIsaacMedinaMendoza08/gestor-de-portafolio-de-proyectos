@@ -207,9 +207,9 @@ async function menuEntregables() {
 
         return menuEntregables();
     }
-    //else {
-    //    return;
-    //}
+    else {
+        return;
+    }
 }
 
 module.exports = menuEntregables;
