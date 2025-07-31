@@ -7,18 +7,26 @@ class Contrato {
         this.valorTotal = valorTotal;
         this.createdAt = new Date();
     }
-
-    static validar(data) {
-        const errores = [];
-
-        if (!data.proyectoId) errores.push("Proyecto asociado obligatorio");
-        if (!data.condiciones || typeof data.condiciones !== 'string') errores.push("Condiciones inválidas");
-        if (!data.fechaInicio || isNaN(new Date(data.fechaInicio))) errores.push("Fecha de inicio inválida");
-        if (!data.fechaFin || isNaN(new Date(data.fechaFin))) errores.push("Fecha de fin inválida");
-        if (!data.valorTotal || typeof data.valorTotal !== 'number' || data.valorTotal <= 0) errores.push("Valor total inválido");
-
-        return errores;
-    }
 }
 
-module.exports = Contrato;
+const contratoSchema = {
+    type: "object",
+    properties: {
+        proyectoId: { type: "string" },
+        condiciones: { type: "string", minLength: 15 },
+        fechaInicio: { type: "string", format: "date" },
+        fechaFin: { type: "string", format: "date" },
+        valorTotal: { type: "number", minimum: 1 },
+        formaPago: { type: "string", enum: ["anticipo", "contraentrega", "por hitos", "mensual"] },
+        moneda: { type: "string", pattern: "^[A-Z]{3}$" },
+        penalizacionPorRetraso: { type: "string" },
+        notasAdicionales: { type: "string", maxLength: 500 },
+    },
+    required: ["proyectoId", "condiciones", "fechaInicio", "fechaFin", "valorTotal", "formaPago", "moneda"],
+    additionalProperties: false
+};
+
+module.exports = {
+    Contrato: function (data) { return data; },
+    contratoSchema
+};

@@ -26,14 +26,12 @@ async function menuContratos() {
 
     if (accion === '🆕 Crear contrato para un proyecto') {
         const proyectos = await listarProyectos();
-        const contratos = await listarContratos();
+        const contratosExistentes = await listarContratos();
+        const proyectosConContrato = contratosExistentes.map(c => c.proyectoId);
+        const sinContrato = proyectos.filter(p => !proyectosConContrato.includes(p._id.toString()));
 
-        // Excluir proyectos que ya tienen contrato
-        const usados = contratos.map(c => c.proyectoId);
-        const disponibles = proyectos.filter(p => !usados.includes(p._id.toString()));
-
-        if (disponibles.length === 0) {
-            console.log(chalk.yellow('⚠️ Todos los proyectos ya tienen contrato.'));
+        if (sinContrato.length === 0) {
+            console.log(chalk.yellow('⚠️ No hay proyectos disponibles para crear contrato.'));
             return menuContratos();
         }
 
@@ -41,22 +39,53 @@ async function menuContratos() {
             {
                 type: 'list',
                 name: 'proyectoId',
-                message: 'Selecciona un proyecto:',
-                choices: disponibles.map(p => ({
-                    name: `${p.nombre} (${p._id.toString()})`,
-                    value: p._id.toString()
-                }))
+                message: 'Selecciona el proyecto:',
+                choices: sinContrato.map(p => ({ name: p.nombre, value: p._id.toString() }))
             }
         ]);
 
         const datos = await inquirer.prompt([
-            { name: 'condiciones', message: 'Condiciones del contrato:' },
-            { name: 'fechaInicio', message: 'Fecha de inicio (YYYY-MM-DD):' },
-            { name: 'fechaFin', message: 'Fecha de finalización (YYYY-MM-DD):' },
+            {
+                name: 'condiciones',
+                message: 'Condiciones del contrato:',
+                validate: val => val.length >= 15 || 'Debe tener al menos 15 caracteres'
+            },
+            {
+                name: 'fechaInicio',
+                message: 'Fecha de inicio (YYYY-MM-DD):',
+                validate: val => /^\d{4}-\d{2}-\d{2}$/.test(val)
+            },
+            {
+                name: 'fechaFin',
+                message: 'Fecha de fin (YYYY-MM-DD):',
+                validate: val => /^\d{4}-\d{2}-\d{2}$/.test(val)
+            },
             {
                 name: 'valorTotal',
                 message: 'Valor total del contrato:',
                 validate: val => !isNaN(val) && Number(val) > 0
+            },
+            {
+                type: 'list',
+                name: 'formaPago',
+                message: 'Forma de pago:',
+                choices: ['anticipo', 'contraentrega', 'por hitos', 'mensual']
+            },
+            {
+                name: 'moneda',
+                message: 'Moneda (ej: COP, USD, EUR):',
+                validate: val => /^[A-Z]{3}$/.test(val)
+            },
+            {
+                name: 'penalizacionPorRetraso',
+                message: 'Penalización por retraso (opcional):',
+                default: ''
+            },
+            {
+                name: 'notasAdicionales',
+                message: 'Notas adicionales (opcional):',
+                default: '',
+                validate: val => val.length <= 500
             }
         ]);
 
@@ -64,20 +93,22 @@ async function menuContratos() {
             await crearContrato({
                 proyectoId,
                 condiciones: datos.condiciones,
-                fechaInicio: new Date(datos.fechaInicio),
-                fechaFin: new Date(datos.fechaFin),
-                valorTotal: Number(datos.valorTotal)
+                fechaInicio: datos.fechaInicio,
+                fechaFin: datos.fechaFin,
+                valorTotal: Number(datos.valorTotal),
+                formaPago: datos.formaPago,
+                moneda: datos.moneda,
+                penalizacionPorRetraso: datos.penalizacionPorRetraso || undefined,
+                notasAdicionales: datos.notasAdicionales || undefined
             });
-
-            console.log(chalk.green('✅ Contrato creado correctamente.'));
+            console.log(chalk.green('✅ Contrato creado exitosamente.'));
         } catch (err) {
-            console.error(chalk.red('❌ Error:'), err.message);
+            console.error(chalk.red(err.message));
         }
 
         return menuContratos();
     }
 
-    // Ver contrato por proyecto
     else if (accion === '🔍 Ver contrato por proyecto') {
         const proyectos = await listarProyectos();
         const clientes = await listarClientes();
@@ -109,46 +140,44 @@ async function menuContratos() {
         console.log(`📝 Condiciones: ${contrato.condiciones}`);
         console.log(`📆 Inicio: ${new Date(contrato.fechaInicio).toLocaleDateString()}`);
         console.log(`📆 Fin: ${new Date(contrato.fechaFin).toLocaleDateString()}`);
-        console.log(`💰 Valor total: $${contrato.valorTotal.toLocaleString()}`);
+        console.log(`💰 Valor total: $${contrato.valorTotal.toLocaleString()} ${contrato.moneda}`);
+        console.log(`💳 Forma de pago: ${contrato.formaPago}`);
+        if (contrato.penalizacionPorRetraso) console.log(`⚠️ Penalización por retraso: ${contrato.penalizacionPorRetraso}`);
+        if (contrato.notasAdicionales) console.log(`📝 Notas adicionales: ${contrato.notasAdicionales}`);
         console.log(chalk.gray('────────────────────────────────────────────\n'));
 
         return menuContratos();
     }
 
-    // Listar todos los contratos
     else if (accion === '📄 Listar todos los contratos') {
         const contratos = await listarContratos();
         const proyectos = await listarProyectos();
         const clientes = await listarClientes();
 
-        const proyectosPorId = Object.fromEntries(proyectos.map(p => [p._id.toString(), p]));
-        const clientesPorId = Object.fromEntries(clientes.map(c => [c._id.toString(), c.nombre]));
-
         if (contratos.length === 0) {
             console.log(chalk.yellow('⚠️ No hay contratos registrados.'));
-            return menuContratos();
+        } else {
+            contratos.forEach((contrato, i) => {
+                const proyecto = proyectos.find(p => p._id.toString() === contrato.proyectoId);
+                const cliente = clientes.find(c => c._id.toString() === proyecto?.clienteId);
+
+                console.log(`\n📄 Contrato #${i + 1}`);
+                console.log(`📁 Proyecto: ${proyecto?.nombre || 'Desconocido'}`);
+                console.log(`👤 Cliente: ${cliente?.nombre || 'Desconocido'}`);
+                console.log(`📝 Condiciones: ${contrato.condiciones}`);
+                console.log(`📆 Inicio: ${new Date(contrato.fechaInicio).toLocaleDateString()}`);
+                console.log(`📆 Fin: ${new Date(contrato.fechaFin).toLocaleDateString()}`);
+                console.log(`💰 Valor total: $${contrato.valorTotal.toLocaleString()} ${contrato.moneda}`);
+                console.log(`💳 Forma de pago: ${contrato.formaPago}`);
+                if (contrato.penalizacionPorRetraso) console.log(`⚠️ Penalización por retraso: ${contrato.penalizacionPorRetraso}`);
+                if (contrato.notasAdicionales) console.log(`📝 Notas adicionales: ${contrato.notasAdicionales}`);
+                console.log(chalk.gray('────────────────────────────────────────────\n'));
+            });
         }
-
-        console.log(chalk.cyan.bold('\n📋 Contratos registrados:\n'));
-
-        contratos.forEach((c, i) => {
-            const proyecto = proyectosPorId[c.proyectoId];
-            const cliente = proyecto ? clientesPorId[proyecto.clienteId] : 'Desconocido';
-
-            console.log(chalk.bold(`#${i + 1}`));
-            console.log(`📁 Proyecto: ${proyecto?.nombre || 'No encontrado'}`);
-            console.log(`👤 Cliente: ${cliente}`);
-            console.log(`📝 Condiciones: ${c.condiciones}`);
-            console.log(`📆 Desde: ${new Date(c.fechaInicio).toLocaleDateString()}`);
-            console.log(`📆 Hasta: ${new Date(c.fechaFin).toLocaleDateString()}`);
-            console.log(`💰 Valor: $${c.valorTotal.toLocaleString()}`);
-            console.log(chalk.gray('────────────────────────────────────────────\n'));
-        });
 
         return menuContratos();
     }
 
-    // Volver
     else {
         return;
     }
