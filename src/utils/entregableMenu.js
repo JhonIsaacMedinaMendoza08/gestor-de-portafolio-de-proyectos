@@ -78,7 +78,44 @@ async function menuEntregables() {
         }
 
         return menuEntregables();
-    } 
+    } else if (accion === '📋 Ver entregables por proyecto') {
+        const proyectos = await listarProyectos();
+        const clientes = await listarClientes();
+
+        const { proyectoId } = await inquirer.prompt([
+            {
+                type: 'list',
+                name: 'proyectoId',
+                message: 'Selecciona proyecto:',
+                choices: proyectos.map(p => ({ name: p.nombre, value: p._id.toString() }))
+            }
+        ]);
+
+        const entregables = await listarEntregablesPorProyecto(proyectoId);
+        const proyecto = proyectos.find(p => p._id.toString() === proyectoId);
+        const cliente = clientes.find(c => c._id.toString() === proyecto.clienteId);
+
+        if (entregables.length === 0) {
+            console.log(chalk.yellow('⚠️ Este proyecto no tiene entregables registrados.'));
+            return menuEntregables();
+        }
+
+        console.log(chalk.cyan.bold(`\n📦 Entregables para proyecto: ${proyecto.nombre} (Cliente: ${cliente?.nombre || 'Desconocido'})\n`));
+
+        entregables.forEach((e, i) => {
+            console.log(chalk.bold(`#${i + 1}`), chalk.green(e.nombre));
+            console.log(`📝 Descripción: ${e.descripcion}`);
+            console.log(`📅 Fecha límite: ${new Date(e.fechaLimite).toLocaleDateString()}`);
+            console.log(`📌 Estado: ${chalk.yellow(e.estado)}`);
+            console.log(`🕓 Registrado: ${new Date(e.createdAt).toLocaleDateString()}`);
+            console.log(chalk.gray('────────────────────────────────────────────\n'));
+        });
+
+        return menuEntregables();
+    }
+
+
+
 
 
 

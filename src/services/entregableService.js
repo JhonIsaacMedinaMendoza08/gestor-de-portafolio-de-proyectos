@@ -26,6 +26,10 @@ async function crearEntregable(data) {
     const result = await db.collection('entregables').insertOne(nuevo);
     return result.insertedId;
 }
+async function listarEntregablesPorProyecto(proyectoId) {
+    const db = await getDB();
+    return db.collection('entregables').find({ proyectoId }).toArray();
+}
 
 module.exports = {
     crearEntregable,
