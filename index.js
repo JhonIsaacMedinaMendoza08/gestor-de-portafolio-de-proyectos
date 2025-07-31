@@ -1,8 +1,8 @@
 const inquirer = require('inquirer');
-const menuCliente = require('./src/menus/clienteMenu');
-const menuPropuestas = require('./src/menus/propuestaMenu.js');
-const menuProyectos = require('./src/menus/proyectoMenu.js');
-const menuContratos = require('./src/menus/contratoMenu.js');
+const menuCliente = require('./src/utils/clienteMenu');
+const menuPropuestas = require('./src/utils/propuestaMenu.js');
+const menuProyectos = require('./src/utils/proyectoMenu.js');
+const menuContratos = require('./src/utils/contratoMenu.js');
 
 
 const connectDB = require('./src/config/mongo'); 
