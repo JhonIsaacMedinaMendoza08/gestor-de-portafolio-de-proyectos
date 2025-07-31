@@ -5,8 +5,8 @@ const { listarClientes } = require('../services/clienteServices.js');
 const {
     crearEntregable,
     listarEntregablesPorProyecto,
-    // cambiarEstadoEntregable,
-    // eliminarEntregable
+    cambiarEstadoEntregable,
+    eliminarEntregable
 } = require('../services/entregableService.js');
 const { ObjectId } = require('mongodb');
 
@@ -19,9 +19,9 @@ async function menuEntregables() {
             choices: [
                 '🆕 Crear entregable',
                 '📋 Ver entregables por proyecto',
-                // '🔄 Cambiar estado de entregable',
-                // '🗑️ Eliminar entregable',
-                // '⬅️ Volver'
+                '🔄 Cambiar estado de entregable',
+                '🗑️ Eliminar entregable',
+                //'⬅️ Volver'
             ]
         }
     ]);
@@ -113,12 +113,103 @@ async function menuEntregables() {
 
         return menuEntregables();
     }
+    else if (accion === '🔄 Cambiar estado de entregable') {
+        const proyectos = await listarProyectos();
+        const { proyectoId } = await inquirer.prompt([
+            {
+                type: 'list',
+                name: 'proyectoId',
+                message: 'Selecciona proyecto:',
+                choices: proyectos.map(p => ({ name: p.nombre, value: p._id.toString() }))
+            }
+        ]);
 
+        const entregables = await listarEntregablesPorProyecto(proyectoId);
 
+        if (entregables.length === 0) {
+            console.log(chalk.yellow('⚠️ Este proyecto no tiene entregables.'));
+            return menuEntregables();
+        }
 
+        const { entregableId } = await inquirer.prompt([
+            {
+                type: 'list',
+                name: 'entregableId',
+                message: 'Selecciona entregable:',
+                choices: entregables.map(e => ({ name: `${e.nombre} (${e.estado})`, value: e._id.toString() }))
+            }
+        ]);
 
+        const { nuevoEstado } = await inquirer.prompt([
+            {
+                type: 'list',
+                name: 'nuevoEstado',
+                message: 'Nuevo estado del entregable:',
+                choices: ['pendiente', 'entregado', 'aprobado', 'rechazado']
+            }
+        ]);
 
+        try {
+            await cambiarEstadoEntregable(entregableId, nuevoEstado);
+            console.log(chalk.green('✅ Estado actualizado.'));
+        } catch (err) {
+            console.error(chalk.red(err.message));
+        }
 
+        return menuEntregables();
+    }
+
+    else if (accion === '🗑️ Eliminar entregable') {
+        const proyectos = await listarProyectos();
+        const { proyectoId } = await inquirer.prompt([
+            {
+                type: 'list',
+                name: 'proyectoId',
+                message: 'Selecciona proyecto:',
+                choices: proyectos.map(p => ({ name: p.nombre, value: p._id.toString() }))
+            }
+        ]);
+
+        const entregables = await listarEntregablesPorProyecto(proyectoId);
+        if (entregables.length === 0) {
+            console.log(chalk.yellow('⚠️ Este proyecto no tiene entregables.'));
+            return menuEntregables();
+        }
+
+        const { entregableId } = await inquirer.prompt([
+            {
+                type: 'list',
+                name: 'entregableId',
+                message: 'Selecciona entregable a eliminar:',
+                choices: entregables.map(e => ({ name: `${e.nombre} (${e.estado})`, value: e._id.toString() }))
+            }
+        ]);
+
+        const { confirmar } = await inquirer.prompt([
+            {
+                type: 'confirm',
+                name: 'confirmar',
+                message: '¿Confirmas la eliminación del entregable?',
+                default: false
+            }
+        ]);
+
+        if (confirmar) {
+            try {
+                await eliminarEntregable(entregableId);
+                console.log(chalk.green('🗑️ Entregable eliminado correctamente.'));
+            } catch (err) {
+                console.error(chalk.red(err.message));
+            }
+        } else {
+            console.log(chalk.gray('❎ Eliminación cancelada.'));
+        }
+
+        return menuEntregables();
+    }
+    //else {
+    //    return;
+    //}
 }
 
 module.exports = menuEntregables;
