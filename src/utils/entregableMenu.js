@@ -21,7 +21,7 @@ async function menuEntregables() {
                 '📋 Ver entregables por proyecto',
                 '🔄 Cambiar estado de entregable',
                 '🗑️ Eliminar entregable',
-                //'⬅️ Volver'
+                '⬅️ Volver'
             ]
         }
     ]);
