@@ -1,6 +1,6 @@
 class Contrato {
     constructor({ proyectoId, condiciones, fechaInicio, fechaFin, valorTotal }) {
-        this.proyectoId = proyectoId;
+        this.proyectoId = proyectoId.toString();
         this.condiciones = condiciones;
         this.fechaInicio = fechaInicio;
         this.fechaFin = fechaFin;

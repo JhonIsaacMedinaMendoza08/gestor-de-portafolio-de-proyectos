@@ -1,7 +1,7 @@
 const { getDB } = require('../config/mongo.js');
 const { Propuesta, propuestaSchema } = require('../models/propuestaModel.js');
 const { ObjectId } = require('mongodb');
-const { crearProyecto } = require('./proyectoService.js');
+const { crearProyectoManual } = require('./proyectoService.js');
 const inquirer = require('inquirer');
 
 const Ajv = require('ajv');
@@ -66,11 +66,12 @@ async function actualizarEstado(id, nuevoEstado) {
             }
         ]);
 
-        await crearProyecto({
+        await crearProyectoManual({
             clienteId: propuesta.clienteId,
             propuestaId: id.toString(),
             nombre: nombreProyecto,
             descripcion: propuesta.descripcion,
+            plazoDias: propuesta.plazoDias,
             estado: 'activo'
         });
 

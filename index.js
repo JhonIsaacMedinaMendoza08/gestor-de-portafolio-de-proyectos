@@ -4,6 +4,7 @@ const menuPropuestas = require('./src/utils/propuestaMenu.js');
 const menuProyectos = require('./src/utils/proyectoMenu.js');
 const menuContratos = require('./src/utils/contratoMenu.js');
 const menuEntregables = require('./src/utils/entregableMenu.js');
+const menuFinanzas = require('./src/utils/finanzasMenu.js');
 
 
 async function mostrarMenuPrincipal() {
@@ -23,6 +24,7 @@ async function mostrarMenuPrincipal() {
                 '📁 Gestionar proyectos',
                 '📜 Gestionar contratos',
                 '🚀 Gestionar Entregables',
+                '💰 Gestion Financiera',
 
                 '🚪 Salir'
             ]
@@ -45,7 +47,9 @@ async function mostrarMenuPrincipal() {
         case '🚀 Gestionar Entregables':
             await menuEntregables();
             break;
-            
+        case '💰 Gestion Financiera':
+            await menuFinanzas();
+            break;
         case '🚪 Salir':
             console.log('\n👋 ¡Gracias por usar el Gestor de Portafolio!\n');
             process.exit(0);
