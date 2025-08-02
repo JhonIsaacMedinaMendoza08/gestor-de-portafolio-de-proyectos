@@ -10,50 +10,60 @@ const validate = ajv.compile(ingresoSchema);
 
 async function registrarIngreso(data) {
     const db = await getDB();
+    const session = db.client.startSession();
 
-    if (!validate({ ...data, tipo: "ingreso" })) {
-        const errores = validate.errors.map(e => `• ${e.instancePath} ${e.message}`).join('\n');
-        throw new Error(`❌ Datos inválidos:\n${errores}`);
-    }
-
-    const proyecto = await db.collection('proyectos').findOne({ _id: new ObjectId(data.proyectoId) });
-    if (!proyecto) {
-        throw new Error('❌ Proyecto no encontrado.');
-    }
-
-    const contrato = await db.collection('contratos').findOne({ proyectoId: new ObjectId(data.proyectoId) });
-    if (!contrato) {
-        throw new Error('❌ Este proyecto no tiene contrato asociado.');
-    }
-
-    const ingresosPrevios = await db.collection('finanzas').aggregate([
-        {
-            $match: {
-                proyectoId: data.proyectoId,
-                tipo: 'ingreso'
+    try {
+        const resultado = await session.withTransaction(async () => {
+            if (!validate({ ...data, tipo: "ingreso" })) {
+                const errores = validate.errors.map(e => `• ${e.instancePath} ${e.message}`).join('\n');
+                throw new Error(`❌ Datos inválidos:\n${errores}`);
             }
-        },
-        {
-            $group: {
-                _id: null,
-                totalIngresos: { $sum: '$monto' }
+
+            const proyecto = await db.collection('proyectos').findOne(
+                { _id: new ObjectId(data.proyectoId) },
+                { session }
+            );
+            if (!proyecto) throw new Error('❌ Proyecto no encontrado.');
+
+            const contrato = await db.collection('contratos').findOne(
+                { proyectoId: new ObjectId(data.proyectoId) },
+                { session }
+            );
+            if (!contrato) throw new Error('❌ Este proyecto no tiene contrato asociado.');
+
+            const ingresosPrevios = await db.collection('finanzas').aggregate([
+                {
+                    $match: {
+                        proyectoId: data.proyectoId,
+                        tipo: 'ingreso'
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalIngresos: { $sum: '$monto' }
+                    }
+                }
+            ], { session }).toArray();
+
+            const totalIngresado = ingresosPrevios[0]?.totalIngresos || 0;
+            const restante = contrato.valorTotal - totalIngresado;
+
+            if (data.monto > restante) {
+                throw new Error(`❌ El ingreso supera el monto restante del contrato. Restante: $${restante.toLocaleString()}`);
             }
-        }
-    ]).toArray();
 
-    const totalIngresado = ingresosPrevios[0]?.total || 0;
-    const restante = contrato.valorTotal - totalIngresado;
+            const ingreso = new MovimientoFinanciero(data);
+            await db.collection('finanzas').insertOne(ingreso, { session });
+        });
 
-    if (data.monto > restante) {
-        throw new Error(`❌ El ingreso supera el monto restante del contrato. Restante: $${restante.toLocaleString()}`);
+        return true;
+
+    } finally {
+        await session.endSession();
     }
-
-    const ingreso = new MovimientoFinanciero(data);
-    const result = await db.collection('finanzas').insertOne(ingreso);
-    return result.insertedId;
 }
-
 
 module.exports = {
     registrarIngreso
-}
+};
