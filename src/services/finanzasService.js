@@ -151,8 +151,96 @@ async function registrarEgreso(data) {
     }
 }
 
+async function consultarBalancePorCliente(clienteId) {
+    const db = await getDB();
+
+    const proyectos = await db.collection('proyectos')
+        .find({ clienteId})
+        .toArray();
+
+    if (proyectos.length === 0) return [];
+
+    const resumenes = [];
+
+    for (const proyecto of proyectos) {
+        const contrato = await db.collection('contratos').findOne({ proyectoId: proyecto._id.toString() });
+        
+        let totalIngresado = 0;
+        let totalEgresado = 0;
+        let contratoId = null;
+        let valorContrato = 0;
+
+        if (contrato) {
+            contratoId = contrato._id;
+            valorContrato = contrato.valorTotal;
+
+            const ingresos = await db.collection('finanzas').aggregate([
+                { $match: { contratoId, tipo: 'ingreso' } },
+                { $group: { _id: null, total: { $sum: '$monto' } } }
+            ]).toArray();
+
+            const egresos = await db.collection('finanzas').aggregate([
+                { $match: { contratoId, tipo: 'egreso' } },
+                { $group: { _id: null, total: { $sum: '$monto' } } }
+            ]).toArray();
+
+            totalIngresado = ingresos[0]?.total || 0;
+            totalEgresado = egresos[0]?.total || 0;
+        }
+
+        resumenes.push({
+            nombreProyecto: proyecto.nombre,
+            valorContrato,
+            totalIngresado,
+            totalEgresado,
+            balance: totalIngresado - totalEgresado
+        });
+    }
+
+    return resumenes;
+}
+
+async function listarTodasLasOperaciones() {
+    const db = await getDB();
+
+    const movimientos = await db.collection('finanzas').aggregate([
+        {
+            $lookup: {
+                from: 'proyectos',
+                localField: 'proyectoId',
+                foreignField: '_id',
+                as: 'proyecto'
+            }
+        },
+        {
+            $unwind: {
+                path: '$proyecto',
+                preserveNullAndEmptyArrays: true
+            }
+        },
+        {
+            $sort: {
+                fecha: -1
+            }
+        },
+        {
+            $project: {
+                _id: 0,
+                fecha: 1,
+                tipo: 1,
+                descripcion: 1,
+                monto: 1,
+                nombreProyecto: '$proyecto.nombre'
+            }
+        }
+    ]).toArray();
+
+    return movimientos;
+}
 
 module.exports = {
     registrarIngreso,
-    registrarEgreso
+    registrarEgreso,
+    consultarBalancePorCliente,
+    listarTodasLasOperaciones
 };

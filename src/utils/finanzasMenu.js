@@ -15,6 +15,8 @@ async function menuFinanzas() {
             choices: [
                 '💸 Registrar ingreso asociado a un proyecto',
                 '📤 Registrar egreso asociado a un proyecto',
+                '📊 Consultar balance financiero por cliente',
+                '📚 Listar todas las operaciones financieras',
                 '⬅️ Volver'
             ]
         }
@@ -192,8 +194,68 @@ async function menuFinanzas() {
 
         return menuFinanzas();
     }
+    else if (accion === '📊 Consultar balance financiero por cliente') {
+        const clientes = await require('../services/clienteServices').listarClientes();
+
+        if (clientes.length === 0) {
+            console.log(chalk.yellow('⚠️ No hay clientes registrados.'));
+            return menuFinanzas();
+        }
+
+        const { clienteId } = await inquirer.prompt([
+            {
+                type: 'list',
+                name: 'clienteId',
+                message: 'Selecciona el cliente:',
+                choices: clientes.map(c => ({ name: `${c.nombre} (${c.correo})`, value: c._id.toString() }))
+            }
+        ]);
+
+        const resumenes = await require('../services/finanzasService.js').consultarBalancePorCliente(clienteId);
 
 
+        if (resumenes.length === 0) {
+            console.log(chalk.yellow('\n⚠️ Este cliente no tiene proyectos ni movimientos financieros.\n'));
+            return menuFinanzas();
+        }
+
+        console.log(chalk.cyan.bold('\n📊 Balance financiero por proyecto:\n'));
+
+        resumenes.forEach((r, i) => {
+            console.log(chalk.bold(`#${i + 1} ${r.nombreProyecto}`));
+            console.log(`💼 Valor del contrato: $${r.valorContrato.toLocaleString()}`);
+            console.log(`💰 Total ingresado: $${r.totalIngresado.toLocaleString()}`);
+            console.log(`💸 Total egresado: $${r.totalEgresado.toLocaleString()}`);
+            console.log(`📈 Balance neto: $${(r.balance).toLocaleString()}`);
+            console.log(chalk.gray('────────────────────────────────────────────\n'));
+        });
+
+        return menuFinanzas();
+    }
+    else if (accion === '📚 Listar todas las operaciones financieras') {
+        const operaciones = await require('../services/finanzasService').listarTodasLasOperaciones();
+
+        if (operaciones.length === 0) {
+            console.log(chalk.yellow('\n⚠️ No hay movimientos financieros registrados.\n'));
+            return menuFinanzas();
+        }
+
+        console.log(chalk.cyan.bold('\n📚 Historial de operaciones financieras:\n'));
+
+        operaciones.forEach((op, i) => {
+            const fecha = new Date(op.fecha).toLocaleString();
+            const tipo = op.tipo === 'ingreso' ? '💰 Ingreso' : '📤 Egreso';
+            const proyecto = op.nombreProyecto || 'Sin proyecto';
+
+            console.log(`${chalk.bold(`#${i + 1}`)} — ${fecha}`);
+            console.log(`${tipo} - ${chalk.green(`$${op.monto.toLocaleString()}`)}`);
+            console.log(`📄 Descripción: ${op.descripcion}`);
+            console.log(`📁 Proyecto: ${proyecto}`);
+            console.log(chalk.gray('────────────────────────────────────────────\n'));
+        });
+
+        return menuFinanzas();
+    }
 
     else {
         return;
