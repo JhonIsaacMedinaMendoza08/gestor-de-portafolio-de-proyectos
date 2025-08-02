@@ -1,5 +1,6 @@
 const { getDB } = require('../config/mongo');
 const { MovimientoFinanciero, ingresoSchema } = require('../models/ingresoModel');
+const { MovimientoFinancieroEgreso, egresoSchema } = require('../models/egresoModel');
 const { ObjectId } = require('mongodb');
 const Ajv = require('ajv');
 const addFormats = require('ajv-formats');
@@ -83,6 +84,75 @@ async function registrarIngreso(data) {
     }
 }
 
+async function registrarEgreso(data) {
+    const db = await getDB();
+    const session = db.client.startSession();
+    const ajv = new Ajv();
+    addFormats(ajv);
+    const validate = ajv.compile(egresoSchema);
+
+    try {
+        await session.withTransaction(async () => {
+            const datosParaValidar = {
+                ...data,
+                tipo: 'egreso'
+            };
+
+            if (!validate(datosParaValidar)) {
+                const errores = validate.errors.map(e => `• ${e.instancePath} ${e.message}`).join('\n');
+                throw new Error(`❌ Datos inválidos:\n${errores}`);
+            }
+
+            const proyectoId = new ObjectId(data.proyectoId);
+            let contratoId = null;
+
+            const proyecto = await db.collection('proyectos').findOne({ _id: proyectoId }, { session });
+            if (!proyecto) throw new Error('❌ Proyecto no encontrado.');
+
+            const contrato = await db.collection('contratos').findOne({ proyectoId: data.proyectoId }, { session });
+            let saldoDisponible = Infinity;
+
+            if (contrato) {
+                contratoId = contrato._id;
+
+                const ingresos = await db.collection('finanzas').aggregate([
+                    { $match: { contratoId, tipo: 'ingreso' } },
+                    { $group: { _id: null, total: { $sum: '$monto' } } }
+                ], { session }).toArray();
+
+                const egresos = await db.collection('finanzas').aggregate([
+                    { $match: { contratoId, tipo: 'egreso' } },
+                    { $group: { _id: null, total: { $sum: '$monto' } } }
+                ], { session }).toArray();
+
+                const totalIngresado = ingresos[0]?.total || 0;
+                const totalEgresado = egresos[0]?.total || 0;
+
+                saldoDisponible = totalIngresado - totalEgresado;
+
+                if (data.monto > saldoDisponible) {
+                    throw new Error(`❌ El egreso supera el saldo disponible del proyecto. Disponible: $${saldoDisponible.toLocaleString()}`);
+                }
+            }
+
+            const egreso = new MovimientoFinancieroEgreso({
+                proyectoId,
+                contratoId,
+                descripcion: data.descripcion,
+                monto: data.monto
+            });
+
+            await db.collection('finanzas').insertOne(egreso, { session });
+        });
+
+        return true;
+    } finally {
+        await session.endSession();
+    }
+}
+
+
 module.exports = {
-    registrarIngreso
+    registrarIngreso,
+    registrarEgreso
 };
