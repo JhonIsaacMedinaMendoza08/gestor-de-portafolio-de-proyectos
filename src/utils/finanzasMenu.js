@@ -39,10 +39,9 @@ async function menuFinanzas() {
         ]);
 
         const db = await getDB();
-        const idProyecto = typeof proyectoId === 'string' ? new ObjectId(proyectoId) : proyectoId;
 
-        // Buscar contrato asociado
-        const contrato = await db.collection('contratos').findOne({ proyectoId: idProyecto });
+        // Buscar contrato usando el proyectoId como STRING
+        const contrato = await db.collection('contratos').findOne({ proyectoId });
 
         if (contrato) {
             const ingresos = await db.collection('finanzas').aggregate([
@@ -53,8 +52,9 @@ async function menuFinanzas() {
             const totalIngresado = ingresos[0]?.total || 0;
             const restante = contrato.valorTotal - totalIngresado;
 
+            console.log(chalk.cyan.bold('\n📄 Detalles del contrato:'));
             console.log(`💰 Valor total del contrato: $${contrato.valorTotal.toLocaleString()}`);
-            console.log(`💵 Saldo restante: $${restante.toLocaleString()}`);
+            console.log(`💵 Saldo restante: $${restante.toLocaleString()}\n`);
         } else {
             console.log(chalk.yellow('⚠️ Este proyecto no tiene contrato registrado.'));
             console.log(chalk.gray('🔔 Aún puedes registrar ingresos, pero no se podrá calcular el saldo restante.\n'));
@@ -79,9 +79,9 @@ async function menuFinanzas() {
                 monto: Number(monto),
                 descripcion
             });
-            console.log(chalk.green('✅ Ingreso registrado correctamente.'));
+            console.log(chalk.green('\n✅ Ingreso registrado correctamente.\n'));
         } catch (err) {
-            console.error(chalk.red(err.message));
+            console.error(chalk.red(`\n${err.message}\n`));
         }
 
         return menuFinanzas();

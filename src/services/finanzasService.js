@@ -14,51 +14,61 @@ async function registrarIngreso(data) {
 
     try {
         await session.withTransaction(async () => {
-            const proyectoId = new ObjectId(data.proyectoId);
-
-            // 1. Validación previa sin contratoId
+            // Preparar datos para validación
             const datosParaValidar = {
-                proyectoId: data.proyectoId,
-                descripcion: data.descripcion,
-                monto: data.monto,
+                ...data,
                 tipo: 'ingreso'
             };
 
+            // Validar estructura de datos
             if (!validate(datosParaValidar)) {
                 const errores = validate.errors.map(e => `• ${e.instancePath} ${e.message}`).join('\n');
                 throw new Error(`❌ Datos inválidos:\n${errores}`);
             }
 
-            // 2. Verificar existencia de proyecto
+            // Convertir ID para uso interno
+            const proyectoId = new ObjectId(data.proyectoId);
+            const proyectoIdStr = data.proyectoId; // string para comparación con contrato
+            let contratoId = null;
+
+            // Verificar que el proyecto exista
             const proyecto = await db.collection('proyectos').findOne({ _id: proyectoId }, { session });
             if (!proyecto) {
                 throw new Error('❌ Proyecto no encontrado.');
             }
 
-            // 3. Buscar contrato
-            let contratoId = null;
-            const contrato = await db.collection('contratos').findOne({ proyectoId: data.proyectoId }, { session });
-
+            // Buscar contrato asociado (comparando contra string)
+            const contrato = await db.collection('contratos').findOne({ proyectoId: proyectoIdStr }, { session });
             if (contrato) {
                 contratoId = contrato._id;
 
                 const ingresosPrevios = await db.collection('finanzas').aggregate([
-                    { $match: { contratoId: contrato._id, tipo: 'ingreso' } },
-                    { $group: { _id: null, total: { $sum: '$monto' } } }
+                    {
+                        $match: {
+                            contratoId: contrato._id,
+                            tipo: 'ingreso'
+                        }
+                    },
+                    {
+                        $group: {
+                            _id: null,
+                            totalIngresos: { $sum: '$monto' }
+                        }
+                    }
                 ], { session }).toArray();
 
-                const totalIngresado = ingresosPrevios[0]?.total || 0;
+                const totalIngresado = ingresosPrevios[0]?.totalIngresos || 0;
                 const restante = contrato.valorTotal - totalIngresado;
 
                 if (data.monto > restante) {
-                    throw new Error(`❌ El ingreso supera el saldo restante. Disponible: $${restante.toLocaleString()}`);
+                    throw new Error(`❌ El ingreso supera el saldo restante del contrato. Disponible: $${restante.toLocaleString()}`);
                 }
             }
 
-            // 4. Crear ingreso
+            // Crear ingreso con o sin contrato asociado
             const ingreso = new MovimientoFinanciero({
-                proyectoId: new ObjectId(data.proyectoId),
-                contratoId,  // ✅ se añade explícitamente
+                proyectoId,
+                contratoId,
                 descripcion: data.descripcion,
                 monto: data.monto
             });
