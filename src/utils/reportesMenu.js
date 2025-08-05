@@ -1,7 +1,11 @@
 const inquirer = require('inquirer');
 const { listarClientes } = require('../services/clienteServices.js');
 const { listarProyectos } = require('../services/proyectoService.js');
-const { generarReportePorCliente, generarReportePorProyecto } = require('../services/reporteService.js');
+const { generarReportePorCliente, 
+    generarReportePorProyecto, 
+    generarReportePorRangoFechas, 
+    generarReporteUltimaSemana,
+    generarReporteUltimoMes } = require('../services/reporteService.js');
 const chalk = require('chalk');
 
 async function menuReportes() {
@@ -15,6 +19,10 @@ async function menuReportes() {
             choices: [
                 '📁 Reporte por cliente',
                 '📁 Reporte por proyecto',
+                '📁 Reporte por rango de fechas',
+                '📁 Reporte de la última semana',
+                '📁 Reporte del último mes',
+
                 '⬅️ Volver'
             ]
         }
@@ -81,6 +89,50 @@ async function menuReportes() {
 
         return menuReportes(); // <-- vuelve al menú tras generar reporte
     }
+    // 📁 Reporte por rango de fecha
+    if (tipoReporte === '📁 Reporte por rango de fechas') {
+        const { fechaInicio, fechaFin } = await inquirer.prompt([
+            {
+                name: 'fechaInicio',
+                message: '📅 Fecha de inicio (YYYY-MM-DD):',
+                validate: val => /^\d{4}-\d{2}-\d{2}$/.test(val) || 'Formato inválido'
+            },
+            {
+                name: 'fechaFin',
+                message: '📅 Fecha de fin (YYYY-MM-DD):',
+                validate: val => /^\d{4}-\d{2}-\d{2}$/.test(val) || 'Formato inválido'
+            }
+        ]);
+
+        try {
+            const ruta = await generarReportePorRangoFechas(fechaInicio, fechaFin);
+            console.log(chalk.green(`✅ Reporte generado correctamente en: ${ruta}\n`));
+        } catch (err) {
+            console.error(chalk.red(`\n❌ Error al generar el reporte:\n${err.message}\n`));
+        }
+
+        return menuReportes(); // vuelve al menú
+    }
+    // 📁 Reporte de la última seman
+    if (tipoReporte === '📁 Reporte de la última semana') {
+        try {
+            const path = await generarReporteUltimaSemana();
+            console.log(chalk.green(`\n✅ Reporte de la última semana generado en: ${path}\n`));
+        } catch (err) {
+            console.error(chalk.red(`\n❌ Error al generar el reporte:\n${err.message}\n`));
+        }
+        return menuReportes();
+    }
+    if (tipoReporte === '📁 Reporte del último mes') {
+        try {
+            const path = await generarReporteUltimoMes();
+            console.log(chalk.green(`\n✅ Reporte del último mes generado en: ${path}\n`));
+        } catch (err) {
+            console.error(chalk.red(`\n❌ Error al generar el reporte:\n${err.message}\n`));
+        }
+        return menuReportes();
+    }
+
 
     // ⬅️ Volver
     if (tipoReporte === '⬅️ Volver') {
