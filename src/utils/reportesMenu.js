@@ -5,7 +5,8 @@ const { generarReportePorCliente,
     generarReportePorProyecto, 
     generarReportePorRangoFechas, 
     generarReporteUltimaSemana,
-    generarReporteUltimoMes } = require('../services/reporteService.js');
+    generarReporteUltimoMes,
+    generarReportePorClienteJSON } = require('../services/reporteService.js');
 const chalk = require('chalk');
 
 async function menuReportes() {
@@ -22,6 +23,7 @@ async function menuReportes() {
                 '📁 Reporte por rango de fechas',
                 '📁 Reporte de la última semana',
                 '📁 Reporte del último mes',
+                '📁 Reporte JSON CLIENTE',
 
                 '⬅️ Volver'
             ]
@@ -131,6 +133,38 @@ async function menuReportes() {
             console.error(chalk.red(`\n❌ Error al generar el reporte:\n${err.message}\n`));
         }
         return menuReportes();
+    }
+
+
+    // 📁 Reporte por cliente
+    if (tipoReporte === '📁 Reporte JSON CLIENTE') {
+        const clientes = await listarClientes();
+
+        if (clientes.length === 0) {
+            console.log(chalk.yellow('⚠️ No hay clientes registrados.'));
+            return menuReportes();
+        }
+
+        const { clienteId } = await inquirer.prompt([
+            {
+                type: 'list',
+                name: 'clienteId',
+                message: 'Selecciona un cliente:',
+                choices: clientes.map(c => ({
+                    name: `${c.nombre} (${c.correo})`,
+                    value: c._id.toString()
+                }))
+            }
+        ]);
+
+        try {
+            const pathArchivo = await generarReportePorClienteJSON(clienteId);
+            console.log(chalk.green(`\n✅ Reporte generado correctamente: ${pathArchivo}\n`));
+        } catch (err) {
+            console.error(chalk.red(`\n❌ Error: ${err.message}\n`));
+        }
+
+        return menuReportes(); // <-- vuelve al menú tras generar reporte
     }
 
 

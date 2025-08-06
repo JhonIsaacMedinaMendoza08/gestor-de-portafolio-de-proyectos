@@ -4,6 +4,97 @@ const { getDB } = require('../config/mongo.js');
 const { ObjectId } = require('mongodb');
 
 
+async function generarReportePorClienteJSON(clienteId) {
+
+    const db = await getDB();
+    const session = db.client.startSession();
+
+    let contenidoFinal = '';
+    let cliente = null;
+
+    try {
+        await session.withTransaction(async () => {
+
+            // 🔍 Buscar cliente por ID con sesión activa
+            cliente = await db.collection('clientes').findOne({ _id: new ObjectId(clienteId) }, { session });
+            if (!cliente) {
+                throw new Error("❌ Cliente no encontrado.");
+            }
+
+            // 📦 Buscar todos los proyectos asociados a ese cliente
+            const proyectos = await db.collection('proyectos').find({ clienteId: clienteId }).toArray({ session });
+            if (proyectos.length === 0) throw new Error('El cliente no tiene proyectos asociados');
+
+            // 📝 Comenzar a construir contenido del reporte
+            let contenido = `Reporte financiero por cliente - `;
+            contenido += `Cliente: ${cliente.nombre} (${cliente.correo}) - `;
+            contenido += `Teléfono: ${cliente.telefono} - `;
+
+            for (const proyecto of proyectos) {
+
+                // 🔗 Buscar contrato asociado al proyecto
+                const contrato = await db.collection('contratos').findOne({ proyectoId: proyecto._id.toString() }, { session });
+
+                let valorContrato = contrato?.valorTotal || 0;
+                let contratoId = contrato?._id || null;
+
+                let totalIngresado = 0;
+                let totalEgresado = 0;
+
+                // 💰 Si hay contrato, calcular ingresos y egresos totales asociados
+                if (contratoId) {
+                    const [ingresos, egresos] = await Promise.all([
+                        db.collection('finanzas').aggregate([
+                            { $match: { contratoId, tipo: 'ingreso' } },
+                            { $group: { _id: null, total: { $sum: '$monto' } } }
+                        ], { session }).toArray(),
+                        db.collection('finanzas').aggregate([
+                            { $match: { contratoId, tipo: 'egreso' } },
+                            { $group: { _id: null, total: { $sum: '$monto' } } }
+                        ], { session }).toArray()
+                    ]);
+
+                    totalIngresado = ingresos[0]?.total || 0;
+                    totalEgresado = egresos[0]?.total || 0;
+                }
+
+                // 📌 Agregar información del proyecto al reporte
+                contenido += `Proyecto: ${proyecto.nombre} - `;
+                contenido += `Valor del contrato: $${valorContrato.toLocaleString()} - `;
+                contenido += `Total ingresos:    $${totalIngresado.toLocaleString()} - `;
+                contenido += `Total egresos:     $${totalEgresado.toLocaleString()} - `;
+                contenido += `Balance neto:      $${(totalIngresado - totalEgresado).toLocaleString()} - `;
+                contenido += `Fecha: ${new Date}`
+            }
+
+            // ✔️ Guardar contenido final del reporte para escribir fuera de la transacción
+            contenidoFinal = JSON.stringify(contenido);
+        });
+
+        // 🗂 Definir ruta y nombre del archivo a guardar
+        const fileName = `reporte_cliente_${cliente.nombre.replace(/\s/g, '_')}.json`;
+        const filePath = path.join(__dirname, '../reportes', fileName);
+        // 📁 Asegurarse de que exista la carpeta /reportes
+        if (!fs.existsSync(path.dirname(filePath))) {
+            fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        }
+
+        // 💾 Escribir el archivo con el contenido generado
+        fs.writeFileSync(filePath, JSON.stringify(contenidoFinal), 'utf8');
+        return filePath;
+
+    } catch (error) {
+        console.error(error.message);
+        throw error;
+
+    } finally {
+        // 🔚 Cerrar sesión de la transacción
+        await session.endSession();
+    }
+
+}
+
+
 async function generarReportePorCliente(clienteId) {
     const db = await getDB();
     const session = db.client.startSession();
@@ -74,13 +165,12 @@ async function generarReportePorCliente(clienteId) {
         // 🗂 Definir ruta y nombre del archivo a guardar
         const fileName = `reporte_cliente_${cliente.nombre.replace(/\s/g, '_')}.txt`;
         const filePath = path.join(__dirname, '../reportes', fileName);
-
         // 📁 Asegurarse de que exista la carpeta /reportes
         if (!fs.existsSync(path.dirname(filePath))) {
             fs.mkdirSync(path.dirname(filePath), { recursive: true });
         }
 
-        // 💾 Escribir el archivo .txt con el contenido generado
+        // 💾 Escribir el archivo con el contenido generado
         fs.writeFileSync(filePath, contenidoFinal, 'utf8');
         return filePath;
 
@@ -152,11 +242,11 @@ async function generarReportePorProyecto(proyectoId) {
             contenidoFinal = contenido;
         });
         const filePath = path.join(__dirname, '..', 'reportes');
-        if (!fs.existsSync(filePath)) 
+        if (!fs.existsSync(filePath))
             fs.mkdirSync(filePath, { recursive: true });
 
         // Nombre del archivo
-        const fileName = `reporte_proyecto_${proyecto.nombre.replace(/\s+/g, '_')}.txt`;
+        const fileName = `reporte_proyecto_${proyecto.nombre.replace(/\s+/g, '_')}.json`;
         const ruta = path.join(filePath, fileName);
 
         // Escribir archivo
@@ -333,54 +423,6 @@ module.exports = {
     generarReportePorProyecto,
     generarReportePorRangoFechas,
     generarReporteUltimaSemana,
-    generarReporteUltimoMes
+    generarReporteUltimoMes,
+    generarReportePorClienteJSON
 };
-
-
-
-
-
-// ## ✍️ Escritura de archivos
-// - **fs.writeFile()**  
-//   Crea o sobrescribe un archivo de forma asíncrona.
-// - **fs.writeFileSync()**  
-//   Crea o sobrescribe un archivo de forma sincrónica.
-// - **fs.appendFile()**  
-//   Agrega contenido al final de un archivo de forma asíncrona.
-// - **fs.appendFileSync()**  
-//   Agrega contenido al final de un archivo de forma sincrónica.
-// ---
-
-// ## 📖 Lectura de archivos
-// - **fs.readFile()**  
-//   Lee el contenido de un archivo de forma asíncrona.
-// - **fs.readFileSync()**  
-//   Lee el contenido de un archivo de forma sincrónica.
-// ---
-
-// ## ❌ Eliminación de archivos
-// - **fs.unlink()**  
-//   Elimina un archivo de forma asíncrona.
-// - **fs.unlinkSync()**  
-//   Elimina un archivo de forma sincrónica.
-// ---
-
-// ## 🧭 Verificación
-// - **fs.existsSync()**  
-//   Verifica si un archivo o directorio existe (solo versión sincrónica).
-// ---
-// ## 🗂️ Directorios
-// - **fs.mkdir()**  
-//   Crea un directorio de forma asíncrona.
-// - **fs.mkdirSync()**  
-//   Crea un directorio de forma sincrónica.
-// - **fs.readdir()**  
-//   Lista los archivos de un directorio de forma asíncrona.
-// - **fs.readdirSync()**  
-//   Lista los archivos de un directorio de forma sincrónica.
-// ---
-// ## ✏️ Otros
-// - **fs.rename()**  
-//   Cambia el nombre o mueve un archivo/directorio (asíncrono).
-// - **fs.renameSync()**  
-//   Cambia el nombre o mueve un archivo/directorio (sincrónico).
